@@ -1,0 +1,217 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>LTC Trigger</title>
+		<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+		<link rel="stylesheet" href="index.css">
+		<script>window.$ = window.jQuery = require('./node_modules/jquery/dist/jquery.min.js');</script>
+		<script src='./node_modules/jquery/dist/jquery.min.js'></script>
+		<script src='./node_modules/bootstrap/dist/js/bootstrap.bundle.js'></script>
+		<script>
+			
+			const ipc = require('electron').ipcRenderer;
+			//const remote = require('electron').remote;
+			const { shell } = require('electron');
+			
+			const config = require('./config');
+
+			const path = require('path');
+			const { readFile } = require('fs');
+
+			const package_json = require('./package.json');
+
+			const { marked } = require('marked');
+			const helpFile = path.join(__dirname, 'help.md');
+
+			var {basicSetup, EditorView} = require("codemirror");
+			var {oneDark} = require('@codemirror/theme-one-dark');
+			var {autocompletion} = require('@codemirror/autocomplete');
+			var {json} = require('@codemirror/lang-json');
+
+			var editor; //codemirror editor
+
+			var currentUDPPort = config.get('udpPort');
+			var currentTimecode = '';
+
+			$( document ).ready(function() {
+				$('#divTopLine').html('v' + package_json.version)
+
+				$('#txtUDPPort').val(currentUDPPort);
+
+				let triggers = config.get('triggers');
+
+				// Our list of completions (can be static, since the editor
+				/// will do filtering based on context).
+				const completions = [
+					{label: "timecode\": \"\", \"url\": \"http://127.0.0.1:8000/"}
+				]
+
+				function myCompletions(context) {
+					let before = context.matchBefore(/\w+/)
+					// If completion wasn't explicitly started and there
+					// is no word before the cursor, don't open completions.
+					if (!context.explicit && !before) return null
+					return {
+						from: before ? before.from : context.pos,
+						options: completions,
+						validFor: /^\w*$/
+					}
+				}
+				
+				editor = new EditorView({
+					doc: JSON.stringify(triggers, null, '\t'),
+					extensions: [basicSetup, oneDark, json(), autocompletion({override: [myCompletions]})],
+					parent: document.getElementById('divTriggers')
+				});
+
+				try {
+					readFile(helpFile, 'utf8' , (err, data) => {
+						if (err) {
+							console.error(err);
+							return;
+						}
+						$('#divHelpBody').html(marked(data));
+					});
+				}
+				catch(error) {
+					//unable to load help file
+				}
+			});
+
+			ipc.on('timecode', function (event, timecode) {
+				//update the timecode whenever a new timecode is sent from the main process
+				$('#txtTimecode').val(timecode);
+				currentTimecode = timecode;
+			});
+
+			ipc.on('last_action', function (event, triggerObj) {
+				//update the UI to show the last action that was run
+				$('#txtLastTimecode').val(triggerObj.timecode);
+
+				let action = '';
+
+				if (triggerObj.url) {
+					action = 'URL: ' + triggerObj.url;
+				}
+				$('#txtLastAction').val(action);
+			});
+
+			function insertTimecode() {
+				//create new json and insert it into the timecodes array
+				saveTriggers();
+
+				let triggers = config.get('triggers');
+
+				let triggerObj = {
+					timecode: currentTimecode,
+					url: 'http://127.0.0.1:44188/api/cue/cueid',
+					method: 'POST'
+				}
+
+				triggers.push(triggerObj);
+				
+				const transaction = editor.state.update({
+					changes: {
+						from: 0,
+						to: editor.state.doc.length,
+						insert: JSON.stringify(triggers, null, '\t')
+					}
+				});
+
+				if (transaction) {
+					editor.dispatch(transaction);
+				}
+
+				saveTriggers();
+			}
+		
+			function save() {
+				//save the UDP port and current trigger data
+
+				let newUDPPort = parseInt($('#txtUDPPort').val());
+				if (currentUDPPort !== newUDPPort) {
+					currentUDPPort = newUDPPort;
+					config.set('udpPort', newUDPPort);
+					ipc.send('udp_port_change');
+				}
+				saveTriggers();
+			}
+
+			function saveTriggers() {
+				//save triggers to the database
+				try {
+					let triggers = JSON.parse(editor.state.doc.toString());
+					config.set('triggers', triggers);
+				}
+				catch(error) {
+					//JSON did not parse successfully
+				}
+				
+			}
+		</script>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>LTC Trigger</h1>
+				<p>This program receives UDP data from LTC Reader and triggers actions.</p>
+				<p id='divTopLine'></p>		
+			</header>
+			<section class="main">
+				<div id="divHelpButton" class='form-group col-md-1 d-flex align-items-center justify-content-start'>
+					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
+						Help
+					</button>
+				</div>
+				<div class='form-row'>
+					<div class="input-group">
+						<div class="input-group-prepend">
+							<label class="input-group-text" for="txtUDPPort">UDP Listening Port</label>
+						</div>	
+						<input type='number' id='txtUDPPort' class='form-control'/>
+						<div class='form-group col-md-3 d-flex align-items-center justify-content-end'>
+							<button type="button" class="btn btn-primary" id="btnSave" onclick='save();'>Save Settings</button>
+						</div>
+					</div>
+				</div>
+				<div class="input-group">
+					<div class="input-group-prepend">
+						<label class="input-group-text" for="txtTimecode">Current Timecode</label>
+					</div>	
+					<input type='text' readonly id='txtTimecode' class='form-control'/>
+					<button class="btn btn-secondary" type="button" id="insert-button" onclick='insertTimecode();'>Insert Timecode</button>
+				</div>
+				<div class="input-group">
+					<div class="input-group-prepend">
+						<label class="input-group-text" for="txtLastTimecode">Last Timecode Triggered</label>
+					</div>	
+					<input type='text' readonly id='txtLastTimecode' class='form-control'/>
+					<div class="input-group-prepend">
+						<label class="input-group-text" for="txtLastAction">Action</label>
+					</div>	
+					<input type='text' readonly id='txtLastAction' class='form-control'/>
+				</div>
+				<div id="divTriggers">
+				</div>
+			</section>
+			<div class="modal fade" id="helpModal" tabindex="-1" role="dialog" aria-labelledby="helpModalLabel" aria-hidden="true">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="helpModalLabel">Help</h5>
+							<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body" id='divHelpBody'></div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<footer></footer>
+		</div>
+	</body>
+</html>

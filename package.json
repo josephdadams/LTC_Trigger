@@ -1,0 +1,89 @@
+{
+	"name": "ltc_trigger",
+	"productName": "LTC Trigger",
+	"version": "0.1.0",
+	"description": "This program receives UDP data from LTC Reader and triggers HTTP GET/POST requests or other actions.",
+	"license": "MIT",
+	"repository": "josephdadams/ltc-trigger",
+	"author": {
+		"name": "Joseph Adams",
+		"email": "josephdadams@gmail.com"
+	},
+	"scripts": {
+		"postinstall": "electron-builder install-app-deps",
+		"lint": "xo",
+		"test": "npm run lint",
+		"start": "electron .",
+		"pack": "electron-builder --dir",
+		"dist": "electron-builder --macos --linux --windows",
+		"macdist": "electron-builder --macos",
+		"release": "np"
+	},
+	"dependencies": {
+		"@codemirror/autocomplete": "^6.0.2",
+		"@codemirror/lang-json": "^6.0.0",
+		"@codemirror/theme-one-dark": "^6.0.0",
+		"axios": "^0.27.2",
+		"bootstrap": "^5.1.3",
+		"codemirror": "^6.0.1",
+		"electron-context-menu": "^3.0.0",
+		"electron-debug": "^3.2.0",
+		"electron-store": "^8.0.0",
+		"electron-unhandled": "^3.0.2",
+		"electron-updater": "^4.3.8",
+		"electron-util": "^0.15.1",
+		"jquery": "^3.6.0",
+		"marked": "^4.0.17"
+	},
+	"devDependencies": {
+		"electron": "^12.0.6",
+		"electron-builder": "^22.10.5",
+		"np": "^7.5.0",
+		"xo": "^0.39.1"
+	},
+	"xo": {
+		"envs": [
+			"node",
+			"browser"
+		]
+	},
+	"np": {
+		"publish": false,
+		"releaseDraft": false
+	},
+	"build": {
+		"appId": "com.josephadams.LTC_Trigger",
+		"mac": {
+			"category": "public.app-category.utilities",
+			"darkModeSupport": true
+		},
+		"dmg": {
+			"iconSize": 160,
+			"contents": [
+				{
+					"x": 180,
+					"y": 170
+				},
+				{
+					"x": 480,
+					"y": 170,
+					"type": "link",
+					"path": "/Applications"
+				}
+			]
+		},
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			],
+			"category": "Utility"
+		},
+		"extraResources": [
+			"help.md"
+		],
+		"extraFiles": [
+			"help.md"
+		]
+	}
+}
