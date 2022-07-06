@@ -1,7 +1,7 @@
 {
 	"name": "ltc_trigger",
 	"productName": "LTC Trigger",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "This program receives UDP data from LTC Reader and triggers HTTP GET/POST requests or other actions.",
 	"license": "MIT",
 	"repository": "josephdadams/ltc_trigger",
