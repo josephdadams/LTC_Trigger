@@ -4,7 +4,7 @@
 	"version": "0.1.0",
 	"description": "This program receives UDP data from LTC Reader and triggers HTTP GET/POST requests or other actions.",
 	"license": "MIT",
-	"repository": "josephdadams/ltc-trigger",
+	"repository": "josephdadams/ltc_trigger",
 	"author": {
 		"name": "Joseph Adams",
 		"email": "josephdadams@gmail.com"
